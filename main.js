@@ -6,11 +6,6 @@ const key = auth.API_KEY;
 const b64secret = auth.API_SECRET;
 const passphrase = auth.API_PHRASE;
 
-// Set up public clients for each cryptoasset
-const btcPublicClient = new gdax.PublicClient('BTC-USD');
-const ethPublicClient = new gdax.PublicClient('ETH-USD');
-const ltcPublicClient = new gdax.PublicClient('LTC-USD');
-
 // Set up private client
 const apiURI = 'https://api.gdax.com';
 const sandboxURI = 'https://api-public.sandbox.gdax.com';
