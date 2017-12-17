@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "gdax": "coinbase/gdax-node"
+  }
+}
