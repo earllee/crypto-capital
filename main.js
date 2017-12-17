@@ -18,7 +18,7 @@ function toUSD(number) {
 authedClient.getAccounts()
   .then(data => {
 
-    console.log('Updated: ' + Date().toLocaleString());
+    console.log('Updated: ' + Date().toLocaleString() + '\n');
 
     var promiseData = data.map(account => {
       if (account.currency === 'USD')
@@ -42,6 +42,8 @@ authedClient.getAccounts()
     // Run once GDAX pricing data for all cryptoassets are pulled
     Promise.all(promiseData).then(datas => {
 
+      console.log('---------Account---------');
+
       // Calculate total account value
       let totalAccountValue = datas.reduce((prev, curr) => {
         return parseFloat(curr.priceData.price * curr.account.balance) + prev;
@@ -55,7 +57,15 @@ authedClient.getAccounts()
       }
 
       // Print total account value
-      console.log('Total Account Value: ' + toUSD(totalAccountValue));
+      console.log('Total Account Value: ' + toUSD(totalAccountValue) + '\n');
+
+      console.log('---------Prices----------');
+
+      // Print prices in USD
+      for (datum of datas) {
+        let value = parseFloat(datum.priceData.price);
+        console.log(datum.account.currency + ': ' + toUSD(value));
+      }
     });
 
   })
