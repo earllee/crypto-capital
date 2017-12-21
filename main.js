@@ -11,8 +11,8 @@ const apiURI = 'https://api.gdax.com';
 const sandboxURI = 'https://api-public.sandbox.gdax.com';
 const authedClient = new gdax.AuthenticatedClient(key, b64secret, passphrase, apiURI);
 
-function toUSD(number) {
-  return parseFloat(number).toLocaleString('en-US', { 'style' : 'currency', 'currency' : 'USD' });
+function formatFloatStr(number, spaces, decimals) {
+  return parseFloat(number).toFixed(decimals).padStart(spaces);
 }
 
 authedClient.getAccounts()
@@ -42,17 +42,19 @@ authedClient.getAccounts()
     // Run once GDAX pricing data for all cryptoassets are pulled
     Promise.all(promiseData).then(datas => {
 
-      console.log('\n---------Prices----------');
+      console.log('\n     Prices     ');
+      console.log('----------------');
 
       // Print prices in USD
       for (datum of datas) {
         if (datum.account.currency === 'USD')
           continue;
-        let value = parseFloat(datum.priceData.price);
-        console.log(datum.account.currency + ': ' + toUSD(value));
+        let value = formatFloatStr(datum.priceData.price, 10, 2);
+        console.log(datum.account.currency + ': $' + value);
       }
 
-      console.log('\n---------Account---------');
+      console.log('\nCUR        Value   Amount       %');
+      console.log('---------------------------------');
 
       // Calculate total account value
       let totalAccountValue = datas.reduce((prev, curr) => {
@@ -61,13 +63,16 @@ authedClient.getAccounts()
 
       // Print value for each cryptoasset
       for (datum of datas) {
-        let value = parseFloat(datum.priceData.price * datum.account.balance);
+        let value = formatFloatStr(datum.priceData.price * datum.account.balance, 8, 2);
+        let balance = formatFloatStr(datum.account.balance, 8, 2);
         let percent = (value / totalAccountValue).toLocaleString(undefined, { 'style' : 'percent', 'minimumFractionDigits' : 1 });
-        console.log(datum.account.currency + ': ' + toUSD(value) + ' (' + percent + ')');
+        console.log(datum.account.currency + ': $ ' + value + ', ' + balance + ' (' + percent + ')');
       }
 
       // Print total account value
-      console.log('\nTotal Account Value: ' + toUSD(totalAccountValue));
+      console.log('\nTotal Account Value');
+      console.log('-------------------');
+      console.log('$' + formatFloatStr(totalAccountValue, 18, 2));
 
     });
 
