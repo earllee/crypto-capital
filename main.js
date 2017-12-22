@@ -1,15 +1,16 @@
 const gdax = require('gdax');
+const binance = require('node-binance-api');
 
 // Load authentication words for private client
 const auth = require('./auth.json');
-const key = auth.API_KEY;
-const b64secret = auth.API_SECRET;
-const passphrase = auth.API_PHRASE;
+const gdaxKey = auth.GDAX_API_KEY;
+const gdaxB64Secret = auth.GDAX_API_SECRET;
+const gdaxPassPhrase = auth.GDAX_API_PHRASE;
 
 // Set up private client
 const apiURI = 'https://api.gdax.com';
 const sandboxURI = 'https://api-public.sandbox.gdax.com';
-const authedClient = new gdax.AuthenticatedClient(key, b64secret, passphrase, apiURI);
+const authedClient = new gdax.AuthenticatedClient(gdaxKey, gdaxB64Secret, gdaxPassPhrase, apiURI);
 
 function formatFloatStr(number, spaces, decimals) {
   return parseFloat(number).toFixed(decimals).padStart(spaces);

@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "gdax": "coinbase/gdax-node"
+    "gdax": "coinbase/gdax-node",
+    "node-binance-api": "^0.2.11"
   }
 }
