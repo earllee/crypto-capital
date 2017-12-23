@@ -3,6 +3,7 @@ const gdax = require('gdax');
 const binance = require('node-binance-api');
 const filter = require('filter-values');
 const auth = require('./auth.json');
+const chalk = require('chalk');
 
 var allPromises = [];
 
@@ -143,31 +144,20 @@ Promise.all(allPromises).then(data => {
     return parseFloat(curr.price * curr.balance) + prev;
   }, 0.0);
 
-  // Print prices in USD
-  console.log('\n     Prices     ');
-  console.log('----------------');
+// Print holdings in USD
+  console.log(chalk.bold('\nCUR\t\tPrice\t\t\tAmount\t\t\tValue (%)'));
+  console.log(chalk.grey('----------------------------------------------------------------------------------'));
 
   for (datum of data) {
-    if (datum.currency === 'USD')
-      continue;
-    let value = formatFloatStr(datum.price, 10, 2);
-    console.log(datum.currency + ': $' + value);
-  }
-
-  // Print holdings in USD
-  console.log('\nCUR        Value   Amount       %');
-  console.log('---------------------------------');
-
-  for (datum of data) {
+    let price = formatFloatStr(datum.price, 8, 2);
     let value = formatFloatStr(datum.price * datum.balance, 8, 2);
     let balance = formatFloatStr(datum.balance, 8, 2);
-    let percent = (value / totalAccountValue).toLocaleString(undefined, { 'style': 'percent', 'minimumFractionDigits': 1 });
-    console.log(datum.currency + ': $ ' + value + ', ' + balance + ' (' + percent + ')');
+    let percent = (value / totalAccountValue).toLocaleString(undefined, { 'style': 'percent', 'minimumFractionDigits': 1 }).padStart(5);
+    console.log(datum.currency + '\t\t$ ' + price + '\t\t' + balance + '\t\t$ ' + value + ' (' + percent + ')');
   }
 
   // Print total account value
-  console.log('\nTotal Account Value');
-  console.log('-------------------');
-  console.log('$' + formatFloatStr(totalAccountValue, 18, 2));
+  console.log(chalk.grey('----------------------------------------------------------------------------------'));
+  console.log(chalk.bold('TOTAL' + '\t\t\t\t\t\t\t\t$ ' + formatFloatStr(totalAccountValue, 8, 2) + ' (100%)'));
 
 });
