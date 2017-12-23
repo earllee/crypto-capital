@@ -1,8 +1,10 @@
-# gdax-cli
+# Crypto Capital
 > Ever wanted to discretely check cryptocurrency prices at the office? We've got you covered.
-A simple command-line tool to query GDAX for your current total account value and values (in USD) of each cryptoasset you own.
+A simple command-line tool that queries multiple exchanges and sums up your holdings by currencies and overall value. 
 
-GDAX is Coinbase's cryptoasset exchange.
+**Support for**
+- GDAX
+- Binance
 
 # Setup
 To run this, you will need to install the Node packages and set up authentication with GDAX.
