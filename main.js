@@ -4,6 +4,7 @@ const binance = require('node-binance-api');
 const filter = require('filter-values');
 const auth = require('./auth.json');
 const chalk = require('chalk');
+const ora = require('ora');
 
 var allPromises = [];
 
@@ -63,7 +64,9 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
     .catch(prices => {
       console.log('ERROR: \n' + prices);
     });
+
   allPromises.push(binanceBalance);
+
 }
 
 if (auth.GDAX_API_KEY && auth.GDAX_API_PHRASE) {
@@ -106,7 +109,7 @@ if (auth.GDAX_API_KEY && auth.GDAX_API_PHRASE) {
 }
 
 // Start processing once data from exchanges is returned
-Promise.all(allPromises).then(data => {
+var spinner = ora.promise(Promise.all(allPromises).then(data => {
   if (typeof data === 'undefined' || data.length === 0) return;
 
   // Flatten arrays for each exchange into their currencies
@@ -118,6 +121,8 @@ Promise.all(allPromises).then(data => {
 
 }).then(data => {
   if (typeof data === 'undefined' || data.length === 0) return;
+
+  spinner.clear();
 
   // Combine same currencies from each exchange
   let combinedData = {};
@@ -144,7 +149,7 @@ Promise.all(allPromises).then(data => {
     return parseFloat(curr.price * curr.balance) + prev;
   }, 0.0);
 
-// Print holdings in USD
+  // Print holdings in USD
   console.log(chalk.bold('\nCUR\t\tPrice\t\t\tAmount\t\t\tValue (%)'));
   console.log(chalk.grey('----------------------------------------------------------------------------------'));
 
@@ -159,5 +164,9 @@ Promise.all(allPromises).then(data => {
   // Print total account value
   console.log(chalk.grey('----------------------------------------------------------------------------------'));
   console.log(chalk.bold('TOTAL' + '\t\t\t\t\t\t\t\t$ ' + formatFloatStr(totalAccountValue, 8, 2) + ' (100%)'));
+  console.log();
 
-});
+  spinner.text = 'Success!';
+  spinner.clear();
+
+}), 'Processing');
