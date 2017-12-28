@@ -1,6 +1,6 @@
 # Crypto Capital
 ![Demo](http://g.recordit.co/rPy8xBFceE.gif "Demo")
-> Ever wanted to discretely check cryptocurrency prices at the office or simply want to know what your portfolio looks like consolidated across exchanges? We've got you covered. Crypto Capital is a simple command-line tool that queries multiple exchanges and sums up your holdings by currencies and overall value. 
+> Ever wanted to quickly check cryptocurrency prices or simply want to know what your portfolio looks like consolidated across exchanges? We've got you covered. Crypto Capital is a simple command-line tool that queries multiple exchanges and sums up your holdings by currencies and overall value. 
 
 **Support for**
 - GDAX
@@ -26,6 +26,10 @@ To run this, you will need to install the Node packages and set up authenticatio
 
 # Running
 1. Run `node main.js`
+
+# Current Behaviour
+- Displays GDAX prices over Binance prices for currencies held in both exchanges.
+- Calculates USD prices for Binance alt coins using conversion from alt coin into BTC and then into USDT.
 
 # Future Work
 - Streaming quotes and account values
