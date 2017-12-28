@@ -1,6 +1,6 @@
 # Crypto Capital
-> Ever wanted to discretely check cryptocurrency prices at the office? We've got you covered.
-A simple command-line tool that queries multiple exchanges and sums up your holdings by currencies and overall value. 
+![Demo](http://g.recordit.co/rPy8xBFceE.gif "Demo")
+> Ever wanted to discretely check cryptocurrency prices at the office or simply want to know what your portfolio looks like consolidated across exchanges? We've got you covered. Crypto Capital is a simple command-line tool that queries multiple exchanges and sums up your holdings by currencies and overall value. 
 
 **Support for**
 - GDAX
