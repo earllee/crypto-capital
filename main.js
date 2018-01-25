@@ -26,7 +26,7 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
   });
 
   let binanceBalance = Promise.promisify(binance.balance)() // Not sure why, but this promise always fails
-    .catch(balances => { 
+    .catch(balances => {
       // Filter for only currencies you have more than 0.01 of
       return filter(balances, function(value, key, obj) {
         return parseFloat(value.available) > 0.01;
@@ -41,7 +41,7 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
           let requiredCurrencyPairs = ['BTCUSDT'];
 
           for (account in balances) {
-            if (account !== 'BTC') 
+            if (account !== 'BTC')
               requiredCurrencyPairs.push(account + 'BTC');
           }
 
