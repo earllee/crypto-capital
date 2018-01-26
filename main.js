@@ -4,6 +4,7 @@ const binance = require('node-binance-api');
 const filter = require('filter-values');
 const auth = require('./auth.json');
 const chalk = require('chalk');
+const Kucoin = require('kucoin-api');
 const ora = require('ora');
 
 var allPromises = [];
@@ -69,44 +70,76 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
 
 }
 
-if (auth.GDAX_API_KEY && auth.GDAX_API_PHRASE) {
-  // Set up private client
-  const apiURI = 'https://api.gdax.com';
-  const sandboxURI = 'https://api-public.sandbox.gdax.com';
-  const authedClient = new gdax.AuthenticatedClient(auth.GDAX_API_KEY, auth.GDAX_API_SECRET, auth.GDAX_API_PHRASE, apiURI);
+// KuCoin
+if (auth.KUCOIN_API_KEY && auth.KUCOIN_API_SECRET) {
 
-  let gdaxBalance = authedClient.getAccounts()
-    .then(data => {
-      // Get balances and prices
+  let kc = new Kucoin(auth.KUCOIN_API_KEY, auth.KUCOIN_API_SECRET);
 
-      // GDAX
-      let gdaxBalances = data;
+  let kuCoinBalance = kc.getBalance()
+    .then((result) => {
+      let balances = result.data.filter(x => x.balance > 0.0001);
+      let coins = balances.map(x => x.coinType);
 
-      let promiseData = gdaxBalances.map(account => {
-        if (account.currency === 'USD')
-          return { 'price' : 1.0, 'currency' : account.currency, 'balance' : parseFloat(account.balance), 'exchange' : 'GDAX' };
+      return kc.getExchangeRates({symbols: coins})
+          .then((result) => {
+              let rates = result.data.rates;
 
-        var publicClient = new gdax.PublicClient(account.currency + '-USD');
-
-        return publicClient.getProductTicker()
-          .then(data => {
-            return { 'price' : parseFloat(data.price), 'currency' : account.currency, 'balance' : parseFloat(account.balance), 'exchange' : 'GDAX' };
+              return balances.map(x => {
+                  return {
+                      "currency" : x.coinType,
+                      "price" : 1.00 * rates[x.coinType]["USD"],
+                      "balance" : 1.00 * x.balance,
+                      "exchange" : "KuCoin"
+                  }
+              })
           })
-          .catch(error => {
-            return error;
-          })
+    })
+    .catch((err) => {
+      console.log(err)
+    })
+
+    allPromises.push(kuCoinBalance);
+  }
+
+  // GDAX
+  if (auth.GDAX_API_KEY && auth.GDAX_API_PHRASE) {
+    // Set up private client
+    const apiURI = 'https://api.gdax.com';
+    const sandboxURI = 'https://api-public.sandbox.gdax.com';
+    const authedClient = new gdax.AuthenticatedClient(auth.GDAX_API_KEY, auth.GDAX_API_SECRET, auth.GDAX_API_PHRASE, apiURI);
+
+    let gdaxBalance = authedClient.getAccounts()
+      .then(data => {
+        // Get balances and prices
+
+        // GDAX
+        let gdaxBalances = data;
+
+        let promiseData = gdaxBalances.map(account => {
+          if (account.currency === 'USD')
+            return { 'price' : 1.0, 'currency' : account.currency, 'balance' : parseFloat(account.balance), 'exchange' : 'GDAX' };
+
+          var publicClient = new gdax.PublicClient(account.currency + '-USD');
+
+          return publicClient.getProductTicker()
+            .then(data => {
+              return { 'price' : parseFloat(data.price), 'currency' : account.currency, 'balance' : parseFloat(account.balance), 'exchange' : 'GDAX' };
+            })
+            .catch(error => {
+              return error;
+            })
+        });
+
+        return promiseData;
+
+      })
+      .catch(error => {
+        console.log(error);
       });
 
-      return promiseData;
-
-    })
-    .catch(error => {
-      console.log(error);
-    });
-
-  // Combine requests to exchanges
-  allPromises.push(gdaxBalance);
-}
+    // Combine requests to exchanges
+    allPromises.push(gdaxBalance);
+  }
 
 // Start processing once data from exchanges is returned
 var spinner = ora.promise(Promise.all(allPromises).then(data => {
