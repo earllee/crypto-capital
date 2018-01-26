@@ -7,13 +7,17 @@ const chalk = require('chalk');
 const Kucoin = require('kucoin-api');
 const ora = require('ora');
 
+// Don't use var
 var allPromises = [];
 
 function formatFloatStr(number, spaces, decimals) {
   return parseFloat(number).toFixed(decimals).padStart(spaces);
 }
 
+// You can't sort an object
 function sortObject(o) {
+  // Comma return in your reduce is not a well known feature
+  // It's better to just not do a one liner make it more explicit
   return Object.keys(o).sort().reduce((r, k) => (r[k] = o[k], r), {});
 }
 
@@ -26,6 +30,7 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
     'APISECRET': auth.BINANCE_API_SECRET
   });
 
+  // Lol maybe figure out why it always fails???
   let binanceBalance = Promise.promisify(binance.balance)() // Not sure why, but this promise always fails
     .catch(balances => {
       // Filter for only currencies you have more than 0.01 of
@@ -41,6 +46,7 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
 
           let requiredCurrencyPairs = ['BTCUSDT'];
 
+          // again you can use mapping here
           for (account in balances) {
             if (account !== 'BTC')
               requiredCurrencyPairs.push(account + 'BTC');
@@ -52,9 +58,14 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
 
           let x = [];
 
-          for (key in balances) {
+          // for in loops are for lame people and also error prone (google it)
+          // for (key in balances) {
+          for (const key of Object.keys(balances)) {
+            // Format this better pls. Ugly on one line. Check out prettier.io
             x.push({ 'price' : prices[key + 'BTC'] * prices['BTCUSDT'], 'currency' : key, 'balance' : parseFloat(balances[key].available), 'exchange' : 'Binance' })
           }
+          // Alternatively you can do const x = Object.keys(balances).map(key => thing in loop above)
+          
 
           return x;
 
@@ -153,12 +164,16 @@ var spinner = ora.promise(Promise.all(allPromises).then(data => {
   return Promise.all(data);
 
 }).then(data => {
+  // typeof data === 'undefined' is kinda verbose.
+  // Usually !data works and if you wanna be anal about it data != null covers everything
+  // important note: this doesn't work if you did !== null instead of != null
   if (typeof data === 'undefined' || data.length === 0) return;
 
   spinner.clear();
 
   // Combine same currencies from each exchange
   let combinedData = {};
+  // bug here !! should be for (const obj of data) 
   for (obj of data) {
     if (obj.currency in combinedData) {
       combinedData[obj.currency].balance += obj.balance;
@@ -170,10 +185,11 @@ var spinner = ora.promise(Promise.all(allPromises).then(data => {
     delete combinedData[obj.currency].exchange
   }
 
+  // lol this does nothing
   combinedData = sortObject(combinedData);
 
   data = [];
-
+  // Just use Object.values() or alternatively Object.keys(combinedData).map(key => combinedData[key])
   for (obj in combinedData)
     data.push(combinedData[obj])
 
@@ -186,6 +202,7 @@ var spinner = ora.promise(Promise.all(allPromises).then(data => {
   console.log(chalk.bold('\nCUR\t\tPrice\t\t\tAmount\t\t\tValue (%)'));
   console.log(chalk.grey('----------------------------------------------------------------------------------'));
 
+  // for (const datum of data)
   for (datum of data) {
     let price = formatFloatStr(datum.price, 8, 2);
     let value = formatFloatStr(datum.price * datum.balance, 8, 2);
