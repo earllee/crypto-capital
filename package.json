@@ -5,6 +5,7 @@
     "filter-values": "^0.4.1",
     "gdax": "coinbase/gdax-node",
     "kucoin-api": "^0.0.3",
+    "lodash": "^4.17.4",
     "node-binance-api": "^0.2.11",
     "ora": "^1.3.0"
   }

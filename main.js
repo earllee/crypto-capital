@@ -6,15 +6,12 @@ const auth = require('./auth.json');
 const chalk = require('chalk');
 const Kucoin = require('kucoin-api');
 const ora = require('ora');
+const _ = require('lodash');
 
-var allPromises = [];
+const allPromises = [];
 
 function formatFloatStr(number, spaces, decimals) {
   return parseFloat(number).toFixed(decimals).padStart(spaces);
-}
-
-function sortObject(o) {
-  return Object.keys(o).sort().reduce((r, k) => (r[k] = o[k], r), {});
 }
 
 console.log('Started run at: ' + Date().toLocaleString());
@@ -41,22 +38,23 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
 
           let requiredCurrencyPairs = ['BTCUSDT'];
 
-          for (account in balances) {
+          Object.keys(balances).map(account => {
             if (account !== 'BTC')
               requiredCurrencyPairs.push(account + 'BTC');
-          }
+          });
 
           prices = filter(prices, function(value, key, obj) {
             return requiredCurrencyPairs.includes(key);
           });
 
-          let x = [];
-
-          for (key in balances) {
-            x.push({ 'price' : prices[key + 'BTC'] * prices['BTCUSDT'], 'currency' : key, 'balance' : parseFloat(balances[key].available), 'exchange' : 'Binance' })
-          }
-
-          return x;
+          return Object.keys(balances).map(key => { 
+            return { 
+              'price' : prices[key + 'BTC'] * prices['BTCUSDT'], 
+              'currency' : key, 
+              'balance' : parseFloat(balances[key].available), 
+              'exchange' : 'Binance' 
+            };
+          });
 
         });
 
@@ -119,7 +117,7 @@ if (auth.KUCOIN_API_KEY && auth.KUCOIN_API_SECRET) {
           if (account.currency === 'USD')
             return { 'price' : 1.0, 'currency' : account.currency, 'balance' : parseFloat(account.balance), 'exchange' : 'GDAX' };
 
-          var publicClient = new gdax.PublicClient(account.currency + '-USD');
+          const publicClient = new gdax.PublicClient(account.currency + '-USD');
 
           return publicClient.getProductTicker()
             .then(data => {
@@ -142,8 +140,8 @@ if (auth.KUCOIN_API_KEY && auth.KUCOIN_API_SECRET) {
   }
 
 // Start processing once data from exchanges is returned
-var spinner = ora.promise(Promise.all(allPromises).then(data => {
-  if (typeof data === 'undefined' || data.length === 0) return;
+const spinner = ora.promise(Promise.all(allPromises).then(data => {
+  if (!data || data.length === 0) return;
 
   // Flatten arrays for each exchange into their currencies
   data = data.reduce((prev, current) => {
@@ -158,41 +156,48 @@ var spinner = ora.promise(Promise.all(allPromises).then(data => {
   spinner.clear();
 
   // Combine same currencies from each exchange
-  let combinedData = {};
-  for (obj of data) {
-    if (obj.currency in combinedData) {
-      combinedData[obj.currency].balance += obj.balance;
-      if (obj.exchange = 'GDAX') combinedData[obj.currency].price = obj.price;
+  data = Object.values(data.reduce((acc, current) => {
+    if (current.currency in acc) {
+      acc[current.currency].balance += current.balance;
+      if (current.exchange = 'GDAX') acc[current.currency].price = current.price;
     } else {
-      combinedData[obj.currency] = obj;
+      acc[current.currency] = current;
     }
 
-    delete combinedData[obj.currency].exchange
-  }
+    delete acc[current.currency].exchange
 
-  combinedData = sortObject(combinedData);
+    return acc;
+  }, {}));
 
-  data = [];
+  data = data
+    .map(position => { 
+      position.value = 1.00 * position.balance * position.price;
+      return position;
+    })
+    .filter(position => { 
+      return position.value > 1 
+    });
 
-  for (obj in combinedData)
-    data.push(combinedData[obj])
+  // Order positions by value descending
+  data = _.orderBy(data, ['value'], ['desc']);
 
   // Calculate total value
   let totalAccountValue = data.reduce((prev, curr) => {
-    return parseFloat(curr.price * curr.balance) + prev;
+    return curr.value + prev;
   }, 0.0);
 
   // Print holdings in USD
   console.log(chalk.bold('\nCUR\t\tPrice\t\t\tAmount\t\t\tValue (%)'));
   console.log(chalk.grey('----------------------------------------------------------------------------------'));
 
-  for (datum of data) {
+  // Format and print everything
+  data.map(datum => {
     let price = formatFloatStr(datum.price, 8, 2);
-    let value = formatFloatStr(datum.price * datum.balance, 8, 2);
+    let value = formatFloatStr(datum.value, 8, 2);
     let balance = formatFloatStr(datum.balance, 8, 2);
     let percent = (value / totalAccountValue).toLocaleString(undefined, { 'style': 'percent', 'minimumFractionDigits': 1 }).padStart(5);
     console.log(datum.currency + '\t\t$ ' + price + '\t\t' + balance + '\t\t$ ' + value + ' (' + percent + ')');
-  }
+  });
 
   // Print total account value
   console.log(chalk.grey('----------------------------------------------------------------------------------'));
