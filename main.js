@@ -26,7 +26,7 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
   let binanceBalance = Promise.promisify(binance.balance)() // Not sure why, but this promise always fails
     .catch(balances => {
       // Filter for only currencies you have more than 0.01 of
-      return filter(balances, function(value, key, obj) {
+      return filter(balances, function (value, key, obj) {
         return parseFloat(value.available) > 0.01;
       });
     })
@@ -43,16 +43,16 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
               requiredCurrencyPairs.push(account + 'BTC');
           });
 
-          prices = filter(prices, function(value, key, obj) {
+          prices = filter(prices, function (value, key, obj) {
             return requiredCurrencyPairs.includes(key);
           });
 
-          return Object.keys(balances).map(key => { 
-            return { 
-              'price' : prices[key + 'BTC'] * prices['BTCUSDT'], 
-              'currency' : key, 
-              'balance' : parseFloat(balances[key].available), 
-              'exchange' : 'Binance' 
+          return Object.keys(balances).map(key => {
+            return {
+              'price': prices[key + 'BTC'] * prices['BTCUSDT'],
+              'currency': key,
+              'balance': parseFloat(balances[key].available),
+              'exchange': 'Binance'
             };
           });
 
@@ -78,66 +78,66 @@ if (auth.KUCOIN_API_KEY && auth.KUCOIN_API_SECRET) {
       let balances = result.data.filter(x => x.balance > 0.0001);
       let coins = balances.map(x => x.coinType);
 
-      return kc.getExchangeRates({symbols: coins})
-          .then((result) => {
-              let rates = result.data.rates;
+      return kc.getExchangeRates({ symbols: coins })
+        .then((result) => {
+          let rates = result.data.rates;
 
-              return balances.map(x => {
-                  return {
-                      "currency" : x.coinType,
-                      "price" : 1.00 * rates[x.coinType]["USD"],
-                      "balance" : 1.00 * x.balance,
-                      "exchange" : "KuCoin"
-                  }
-              })
+          return balances.map(x => {
+            return {
+              "currency": x.coinType,
+              "price": 1.00 * rates[x.coinType]["USD"],
+              "balance": 1.00 * x.balance,
+              "exchange": "KuCoin"
+            }
           })
+        })
     })
     .catch((err) => {
       console.log(err)
     })
 
-    allPromises.push(kuCoinBalance);
-  }
+  allPromises.push(kuCoinBalance);
+}
 
-  // GDAX
-  if (auth.GDAX_API_KEY && auth.GDAX_API_PHRASE) {
-    // Set up private client
-    const apiURI = 'https://api.gdax.com';
-    const sandboxURI = 'https://api-public.sandbox.gdax.com';
-    const authedClient = new gdax.AuthenticatedClient(auth.GDAX_API_KEY, auth.GDAX_API_SECRET, auth.GDAX_API_PHRASE, apiURI);
+// GDAX
+if (auth.GDAX_API_KEY && auth.GDAX_API_PHRASE) {
+  // Set up private client
+  const apiURI = 'https://api.gdax.com';
+  const sandboxURI = 'https://api-public.sandbox.gdax.com';
+  const authedClient = new gdax.AuthenticatedClient(auth.GDAX_API_KEY, auth.GDAX_API_SECRET, auth.GDAX_API_PHRASE, apiURI);
 
-    let gdaxBalance = authedClient.getAccounts()
-      .then(data => {
-        // Get balances and prices
+  let gdaxBalance = authedClient.getAccounts()
+    .then(data => {
+      // Get balances and prices
 
-        // GDAX
-        let gdaxBalances = data;
+      // GDAX
+      let gdaxBalances = data;
 
-        let promiseData = gdaxBalances.map(account => {
-          if (account.currency === 'USD')
-            return { 'price' : 1.0, 'currency' : account.currency, 'balance' : parseFloat(account.balance), 'exchange' : 'GDAX' };
+      let promiseData = gdaxBalances.map(account => {
+        if (account.currency === 'USD')
+          return { 'price': 1.0, 'currency': account.currency, 'balance': parseFloat(account.balance), 'exchange': 'GDAX' };
 
-          const publicClient = new gdax.PublicClient(account.currency + '-USD');
+        const publicClient = new gdax.PublicClient(account.currency + '-USD');
 
-          return publicClient.getProductTicker()
-            .then(data => {
-              return { 'price' : parseFloat(data.price), 'currency' : account.currency, 'balance' : parseFloat(account.balance), 'exchange' : 'GDAX' };
-            })
-            .catch(error => {
-              return error;
-            })
-        });
-
-        return promiseData;
-
-      })
-      .catch(error => {
-        console.log(error);
+        return publicClient.getProductTicker()
+          .then(data => {
+            return { 'price': parseFloat(data.price), 'currency': account.currency, 'balance': parseFloat(account.balance), 'exchange': 'GDAX' };
+          })
+          .catch(error => {
+            return error;
+          })
       });
 
-    // Combine requests to exchanges
-    allPromises.push(gdaxBalance);
-  }
+      return promiseData;
+
+    })
+    .catch(error => {
+      console.log(error);
+    });
+
+  // Combine requests to exchanges
+  allPromises.push(gdaxBalance);
+}
 
 // Start processing once data from exchanges is returned
 const spinner = ora.promise(Promise.all(allPromises).then(data => {
@@ -170,12 +170,12 @@ const spinner = ora.promise(Promise.all(allPromises).then(data => {
   }, {}));
 
   data = data
-    .map(position => { 
+    .map(position => {
       position.value = 1.00 * position.balance * position.price;
       return position;
     })
-    .filter(position => { 
-      return position.value > 1 
+    .filter(position => {
+      return position.value > 1
     });
 
   // Order positions by value descending
