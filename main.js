@@ -1,10 +1,7 @@
 const Promise = require('bluebird');
-const gdax = require('gdax');
-const binance = require('node-binance-api');
 const filter = require('filter-values');
 const auth = require('./auth.json');
 const chalk = require('chalk');
-const Kucoin = require('kucoin-api');
 const ora = require('ora');
 const _ = require('lodash');
 
@@ -18,25 +15,26 @@ console.log('Started run at: ' + Date().toLocaleString());
 
 // Binance
 if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
+  const binance = require('node-binance-api');
   binance.options({
     'APIKEY': auth.BINANCE_API_KEY,
     'APISECRET': auth.BINANCE_API_SECRET
   });
 
-  let binanceBalance = Promise.promisify(binance.balance)() // Not sure why, but this promise always fails
+  allPromises.push(Promise.promisify(binance.balance)() // Not sure why, but this promise always fails
     .catch(balances => {
       // Filter for only currencies you have more than 0.01 of
       return filter(balances, function (value, key, obj) {
-        return parseFloat(value.available) > 0.01;
+        return parseFloat(value.available) + parseFloat(value.onOrder) > 0.01;
       });
     })
     .then(balances => {
-      let binancePrices = Promise.promisify(binance.prices);
+      const binancePrices = Promise.promisify(binance.prices);
 
       return binancePrices()
         .catch(prices => {
 
-          let requiredCurrencyPairs = ['BTCUSDT'];
+          const requiredCurrencyPairs = ['BTCUSDT'];
 
           Object.keys(balances).map(account => {
             if (account !== 'BTC')
@@ -51,7 +49,7 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
             return {
               'price': prices[key + 'BTC'] * prices['BTCUSDT'],
               'currency': key,
-              'balance': parseFloat(balances[key].available),
+              'balance': parseFloat(balances[key].available) + parseFloat(balances[key].onOrder),
               'exchange': 'Binance'
             };
           });
@@ -62,31 +60,30 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
     // Not sure why, but this promise always fails
     .catch(prices => {
       console.log('ERROR: \n' + prices);
-    });
-
-  allPromises.push(binanceBalance);
+    })
+  );
 
 }
 
 // KuCoin
 if (auth.KUCOIN_API_KEY && auth.KUCOIN_API_SECRET) {
+  const Kucoin = require('kucoin-api');
+  const kc = new Kucoin(auth.KUCOIN_API_KEY, auth.KUCOIN_API_SECRET);
 
-  let kc = new Kucoin(auth.KUCOIN_API_KEY, auth.KUCOIN_API_SECRET);
-
-  let kuCoinBalance = kc.getBalance()
+  allPromises.push(kc.getBalance()
     .then((result) => {
-      let balances = result.data.filter(x => x.balance > 0.0001);
-      let coins = balances.map(x => x.coinType);
+      const balances = result.data.filter(x => (x.balance + x.freezeBalance) > 0.001);
+      const coins = balances.map(x => x.coinType);
 
       return kc.getExchangeRates({ symbols: coins })
         .then((result) => {
-          let rates = result.data.rates;
+          const rates = result.data.rates;
 
           return balances.map(x => {
             return {
               "currency": x.coinType,
               "price": 1.00 * rates[x.coinType]["USD"],
-              "balance": 1.00 * x.balance,
+              "balance": 1.00 * (x.balance + x.freezeBalance),
               "exchange": "KuCoin"
             }
           })
@@ -95,25 +92,21 @@ if (auth.KUCOIN_API_KEY && auth.KUCOIN_API_SECRET) {
     .catch((err) => {
       console.log(err)
     })
-
-  allPromises.push(kuCoinBalance);
+  );
 }
 
 // GDAX
 if (auth.GDAX_API_KEY && auth.GDAX_API_PHRASE) {
   // Set up private client
+  const gdax = require('gdax');
   const apiURI = 'https://api.gdax.com';
   const sandboxURI = 'https://api-public.sandbox.gdax.com';
   const authedClient = new gdax.AuthenticatedClient(auth.GDAX_API_KEY, auth.GDAX_API_SECRET, auth.GDAX_API_PHRASE, apiURI);
 
-  let gdaxBalance = authedClient.getAccounts()
+  allPromises.push(authedClient.getAccounts()
     .then(data => {
       // Get balances and prices
-
-      // GDAX
-      let gdaxBalances = data;
-
-      let promiseData = gdaxBalances.map(account => {
+      return data.map(account => {
         if (account.currency === 'USD')
           return { 'price': 1.0, 'currency': account.currency, 'balance': parseFloat(account.balance), 'exchange': 'GDAX' };
 
@@ -128,15 +121,11 @@ if (auth.GDAX_API_KEY && auth.GDAX_API_PHRASE) {
           })
       });
 
-      return promiseData;
-
     })
     .catch(error => {
       console.log(error);
-    });
-
-  // Combine requests to exchanges
-  allPromises.push(gdaxBalance);
+    })
+  );
 }
 
 // Start processing once data from exchanges is returned
@@ -182,7 +171,7 @@ const spinner = ora.promise(Promise.all(allPromises).then(data => {
   data = _.orderBy(data, ['value'], ['desc']);
 
   // Calculate total value
-  let totalAccountValue = data.reduce((prev, curr) => {
+  const totalAccountValue = data.reduce((prev, curr) => {
     return curr.value + prev;
   }, 0.0);
 
@@ -192,10 +181,10 @@ const spinner = ora.promise(Promise.all(allPromises).then(data => {
 
   // Format and print everything
   data.map(datum => {
-    let price = formatFloatStr(datum.price, 8, 2);
-    let value = formatFloatStr(datum.value, 8, 2);
-    let balance = formatFloatStr(datum.balance, 8, 2);
-    let percent = (value / totalAccountValue).toLocaleString(undefined, { 'style': 'percent', 'minimumFractionDigits': 1 }).padStart(5);
+    const price = formatFloatStr(datum.price, 8, 2);
+    const value = formatFloatStr(datum.value, 8, 2);
+    const balance = formatFloatStr(datum.balance, 8, 2);
+    const percent = (value / totalAccountValue).toLocaleString(undefined, { 'style': 'percent', 'minimumFractionDigits': 1 }).padStart(5);
     console.log(datum.currency + '\t\t$ ' + price + '\t\t' + balance + '\t\t$ ' + value + ' (' + percent + ')');
   });
 
