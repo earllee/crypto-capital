@@ -2,7 +2,6 @@
   "dependencies": {
     "bluebird": "^3.5.1",
     "chalk": "^2.3.0",
-    "filter-values": "^0.4.1",
     "gdax": "coinbase/gdax-node",
     "kucoin-api": "^0.0.3",
     "lodash": "^4.17.4",

@@ -1,5 +1,4 @@
 const Promise = require('bluebird');
-const filter = require('filter-values');
 const auth = require('./auth.json');
 const chalk = require('chalk');
 const ora = require('ora');
@@ -24,7 +23,7 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
   allPromises.push(Promise.promisify(binance.balance)() // Not sure why, but this promise always fails
     .catch(balances => {
       // Filter for only currencies you have more than 0.01 of
-      return filter(balances, function (value, key, obj) {
+      return _.pickBy(balances, function (value, key) {
         return parseFloat(value.available) + parseFloat(value.onOrder) > 0.01;
       });
     })
@@ -34,20 +33,24 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
       return binancePrices()
         .catch(prices => {
 
-          const requiredCurrencyPairs = ['BTCUSDT'];
+          const requiredCurrencyPairs = ['BTCUSDT',
+            ...Object.keys(balances)
+              .filter(account => account !== 'BTC')
+              .map(account => account + 'BTC')
+          ];
 
           Object.keys(balances).map(account => {
             if (account !== 'BTC')
               requiredCurrencyPairs.push(account + 'BTC');
           });
 
-          prices = filter(prices, function (value, key, obj) {
+          const relevantPrices = _.pickBy(prices, function (value, key) {
             return requiredCurrencyPairs.includes(key);
           });
 
           return Object.keys(balances).map(key => {
             return {
-              'price': prices[key + 'BTC'] * prices['BTCUSDT'],
+              'price': relevantPrices[key + 'BTC'] * relevantPrices['BTCUSDT'],
               'currency': key,
               'balance': parseFloat(balances[key].available) + parseFloat(balances[key].onOrder),
               'exchange': 'Binance'
@@ -108,13 +111,23 @@ if (auth.GDAX_API_KEY && auth.GDAX_API_PHRASE) {
       // Get balances and prices
       return data.map(account => {
         if (account.currency === 'USD')
-          return { 'price': 1.0, 'currency': account.currency, 'balance': parseFloat(account.balance), 'exchange': 'GDAX' };
+          return {
+            'price': 1.0,
+            'currency': account.currency,
+            'balance': parseFloat(account.balance),
+            'exchange': 'GDAX'
+          };
 
         const publicClient = new gdax.PublicClient(account.currency + '-USD');
 
         return publicClient.getProductTicker()
           .then(data => {
-            return { 'price': parseFloat(data.price), 'currency': account.currency, 'balance': parseFloat(account.balance), 'exchange': 'GDAX' };
+            return {
+              'price': parseFloat(data.price),
+              'currency': account.currency,
+              'balance': parseFloat(account.balance),
+              'exchange': 'GDAX'
+            };
           })
           .catch(error => {
             return error;
@@ -133,19 +146,17 @@ const spinner = ora.promise(Promise.all(allPromises).then(data => {
   if (!data || data.length === 0) return;
 
   // Flatten arrays for each exchange into their currencies
-  data = data.reduce((prev, current) => {
+  return Promise.all(data.reduce((prev, current) => {
     return prev.concat(current);
-  });
-
-  return Promise.all(data);
+  }));
 
 }).then(data => {
-  if (typeof data === 'undefined' || data.length === 0) return;
+  if (!data || data.length === 0) return;
 
   spinner.clear();
 
   // Combine same currencies from each exchange
-  data = Object.values(data.reduce((acc, current) => {
+  let combinedData = Object.values(data.reduce((acc, current) => {
     if (current.currency in acc) {
       acc[current.currency].balance += current.balance;
       if (current.exchange = 'GDAX') acc[current.currency].price = current.price;
@@ -156,9 +167,7 @@ const spinner = ora.promise(Promise.all(allPromises).then(data => {
     delete acc[current.currency].exchange
 
     return acc;
-  }, {}));
-
-  data = data
+  }, {}))
     .map(position => {
       position.value = 1.00 * position.balance * position.price;
       return position;
@@ -168,10 +177,10 @@ const spinner = ora.promise(Promise.all(allPromises).then(data => {
     });
 
   // Order positions by value descending
-  data = _.orderBy(data, ['value'], ['desc']);
+  combinedData = _.orderBy(combinedData, ['value'], ['desc']);
 
   // Calculate total value
-  const totalAccountValue = data.reduce((prev, curr) => {
+  const totalAccountValue = combinedData.reduce((prev, curr) => {
     return curr.value + prev;
   }, 0.0);
 
@@ -180,13 +189,13 @@ const spinner = ora.promise(Promise.all(allPromises).then(data => {
   console.log(chalk.grey('----------------------------------------------------------------------------------'));
 
   // Format and print everything
-  data.map(datum => {
+  for (const datum of combinedData) {
     const price = formatFloatStr(datum.price, 8, 2);
     const value = formatFloatStr(datum.value, 8, 2);
     const balance = formatFloatStr(datum.balance, 8, 2);
     const percent = (value / totalAccountValue).toLocaleString(undefined, { 'style': 'percent', 'minimumFractionDigits': 1 }).padStart(5);
     console.log(datum.currency + '\t\t$ ' + price + '\t\t' + balance + '\t\t$ ' + value + ' (' + percent + ')');
-  });
+  }
 
   // Print total account value
   console.log(chalk.grey('----------------------------------------------------------------------------------'));
