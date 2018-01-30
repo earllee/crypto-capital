@@ -1,4 +1,5 @@
 const Promise = require('bluebird');
+// This can be replaces by https://lodash.com/docs/4.17.4#pickBy
 const filter = require('filter-values');
 const auth = require('./auth.json');
 const chalk = require('chalk');
@@ -36,11 +37,33 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
 
           const requiredCurrencyPairs = ['BTCUSDT'];
 
+          // The whole point of map is that it returns an array. So if you wanted to use map,
+          // this could be rewritten as:
+          //
+          // const requiredCurrencyPairs = [
+          //  'BTCUSDT',
+          //  ...Object.keys(balances)
+          //    .filter(account => account !== 'BTC')
+          //    .map(account => account + 'BTC')
+          // ]
+          //
+          // In my opinion, that's super extra though unless you're really pushing a functional style.
+          // What you really would want to use here is .forEach instead of .map, but with ES6 I prefer
+          // for..of loops to .forEach cuz of some weirdness of having to pass a function to .forEach
+          // whereas for..of is top level so I would rewrite this as:
+          //
+          // for (count account of Object.keys(balances)) {
+          //   if (account !== 'BTC') {
+          //     requiredCurrencyPairs.push(account + 'BTC');
+          //   }
+          // }
           Object.keys(balances).map(account => {
             if (account !== 'BTC')
               requiredCurrencyPairs.push(account + 'BTC');
           });
 
+          // Generally reassigning the values of function arguments is frowned upon cuz of some weird
+          // bugs that it can cause. Not sure if that's still the case but can't hurt to make an extra variable
           prices = filter(prices, function (value, key, obj) {
             return requiredCurrencyPairs.includes(key);
           });
@@ -132,6 +155,7 @@ if (auth.GDAX_API_KEY && auth.GDAX_API_PHRASE) {
 const spinner = ora.promise(Promise.all(allPromises).then(data => {
   if (!data || data.length === 0) return;
 
+  // Same comment about reassigning function arguments
   // Flatten arrays for each exchange into their currencies
   data = data.reduce((prev, current) => {
     return prev.concat(current);
@@ -140,6 +164,7 @@ const spinner = ora.promise(Promise.all(allPromises).then(data => {
   return Promise.all(data);
 
 }).then(data => {
+  // can do the !data thing here too
   if (typeof data === 'undefined' || data.length === 0) return;
 
   spinner.clear();
@@ -158,6 +183,7 @@ const spinner = ora.promise(Promise.all(allPromises).then(data => {
     return acc;
   }, {}));
 
+  // same thing about reassigning function args
   data = data
     .map(position => {
       position.value = 1.00 * position.balance * position.price;
@@ -179,6 +205,7 @@ const spinner = ora.promise(Promise.all(allPromises).then(data => {
   console.log(chalk.bold('\nCUR\t\tPrice\t\t\tAmount\t\t\tValue (%)'));
   console.log(chalk.grey('----------------------------------------------------------------------------------'));
 
+  // A .map doesn't make sense here. Use for..of because .map is for when you return arrays.
   // Format and print everything
   data.map(datum => {
     const price = formatFloatStr(datum.price, 8, 2);
