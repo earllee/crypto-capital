@@ -3,6 +3,9 @@ const auth = require('./auth.json');
 const chalk = require('chalk');
 const ora = require('ora');
 const _ = require('lodash');
+const binance = require('node-binance-api');
+const Kucoin = require('kucoin-api');
+const gdax = require('gdax');
 
 const allPromises = [];
 
@@ -14,7 +17,6 @@ console.log('Started run at: ' + Date().toLocaleString());
 
 // Binance
 if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
-  const binance = require('node-binance-api');
   binance.options({
     'APIKEY': auth.BINANCE_API_KEY,
     'APISECRET': auth.BINANCE_API_SECRET
@@ -70,7 +72,6 @@ if (auth.BINANCE_API_KEY && auth.BINANCE_API_SECRET) {
 
 // KuCoin
 if (auth.KUCOIN_API_KEY && auth.KUCOIN_API_SECRET) {
-  const Kucoin = require('kucoin-api');
   const kc = new Kucoin(auth.KUCOIN_API_KEY, auth.KUCOIN_API_SECRET);
 
   allPromises.push(kc.getBalance()
@@ -101,7 +102,6 @@ if (auth.KUCOIN_API_KEY && auth.KUCOIN_API_SECRET) {
 // GDAX
 if (auth.GDAX_API_KEY && auth.GDAX_API_PHRASE) {
   // Set up private client
-  const gdax = require('gdax');
   const apiURI = 'https://api.gdax.com';
   const sandboxURI = 'https://api-public.sandbox.gdax.com';
   const authedClient = new gdax.AuthenticatedClient(auth.GDAX_API_KEY, auth.GDAX_API_SECRET, auth.GDAX_API_PHRASE, apiURI);
